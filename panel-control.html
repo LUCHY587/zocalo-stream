@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel — Zócalo de Stream</title>
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #16161f;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0eeff;
+    --muted: #7c7a9a;
+    --accent: #a78bfa;
+    --accent-dim: rgba(167,139,250,0.12);
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 48px;
+  }
+  header { text-align: center; margin-bottom: 24px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-dim);
+    border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 20px; padding: 4px 12px; margin-bottom: 12px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .dot.on { animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  h1 { font-size: 24px; font-weight: 600; }
+  .subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .conn-bar {
+    width: 100%; max-width: 460px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px; color: var(--muted);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+  .conn-dot.err { background: #f87171; }
+  .conn-dot.wait { background: #fb923c; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%; max-width: 460px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+
+  .preview-wrap {
+    background: #1a1a2e; border-radius: 8px;
+    display: flex; align-items: flex-end; padding: 14px;
+    min-height: 80px; margin-bottom: 16px; position: relative; overflow: hidden;
+  }
+  .preview-label { position: absolute; top: 8px; right: 10px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+  .pv { display: flex; align-items: stretch; transform: translateY(50px); opacity: 0; transition: transform 0.5s cubic-bezier(.22,1,.36,1), opacity 0.4s; }
+  .pv.v { transform: translateY(0); opacity: 1; }
+  .pv-bar { width: 4px; border-radius: 3px 0 0 3px; background: var(--accent); flex-shrink: 0; transition: background 0.3s; }
+  .pv-text { background: rgba(8,6,20,0.9); padding: 7px 14px; border-radius: 0 4px 4px 0; }
+  .pv-sub { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); transition: color 0.3s; }
+  .pv-title { font-size: 15px; font-weight: 500; color: #fff; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  .field input {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 10px 13px; font-size: 15px; color: var(--text);
+    font-family: inherit; outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: rgba(255,255,255,0.18); }
+
+  .colors { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 4px; }
+  .cswatch {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .cswatch:hover { transform: scale(1.15); }
+  .cswatch.on { border-color: #fff; transform: scale(1.15); }
+
+  .btn-row { display: flex; gap: 10px; }
+  .btn {
+    flex: 1; padding: 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 700; font-family: inherit;
+    cursor: pointer; transition: transform 0.1s, opacity 0.15s; border: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-show { background: var(--accent); color: #0d0d14; }
+  .btn-show:hover { opacity: 0.88; }
+  .btn-hide { background: rgba(255,255,255,0.07); color: var(--text); border: 1px solid var(--border); }
+  .btn-hide:hover { background: rgba(255,255,255,0.12); }
+
+  .status-msg { font-size: 12px; color: var(--accent); text-align: center; min-height: 18px; margin-top: 8px; }
+
+  .presets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pbtn {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; text-align: left;
+    cursor: pointer; font-family: inherit; color: var(--text); font-size: 12px;
+    transition: background 0.15s;
+  }
+  .pbtn:hover { background: rgba(255,255,255,0.09); }
+  .pbtn .ps { font-size: 9px; color: var(--muted); display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .divider { height: 1px; background: var(--border); margin: 4px 0 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge"><div class="dot on" id="conn-dot"></div> Panel de control</div>
+  <h1>Zócalo de Stream</h1>
+  <p class="subtitle">Los cambios se ven en OBS al instante</p>
+</header>
+
+<div class="conn-bar">
+  <div class="conn-dot wait" id="status-dot"></div>
+  <span id="conn-text">Conectando a Firebase…</span>
+</div>
+
+<div class="card">
+  <div class="card-title">Vista previa</div>
+  <div class="preview-wrap">
+    <span class="preview-label">preview</span>
+    <div class="pv" id="pv">
+      <div class="pv-bar" id="pv-bar"></div>
+      <div class="pv-text">
+        <div class="pv-sub" id="pv-sub">En vivo</div>
+        <div class="pv-title" id="pv-title">Bienvenidos al stream</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Subtítulo</label>
+    <input type="text" id="inp-sub" value="En vivo" placeholder="Ej: Sección 1, Invitado…" oninput="syncPreview()">
+  </div>
+  <div class="field">
+    <label>Título principal</label>
+    <input type="text" id="inp-title" value="Bienvenidos al stream" placeholder="Tema del momento…" oninput="syncPreview()">
+  </div>
+  <div class="field">
+    <label>Color</label>
+    <div class="colors" id="clrs"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-show" onclick="enviar(true)">▶ Mostrar en OBS</button>
+    <button class="btn btn-hide" onclick="enviar(false)">✕ Ocultar</button>
+  </div>
+  <div class="status-msg" id="status-msg"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Presets rápidos</div>
+  <div class="presets-grid" id="pg"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+  const firebaseConfig = {
+    databaseURL: 'https://zocalo-singuion-default-rtdb.firebaseio.com/'
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  const zocaloRef = ref(db, 'zocalo');
+
+  const statusDot  = document.getElementById('status-dot');
+  const connText   = document.getElementById('conn-text');
+
+  function setConectado(ok) {
+    statusDot.className = 'conn-dot ' + (ok ? '' : 'err');
+    connText.textContent = ok ? 'Conectado a Firebase ✓' : 'Error de conexión';
+  }
+
+  const COLORS = [
+    { name: 'Violeta', hex: '#a78bfa' },
+    { name: 'Cyan',    hex: '#22d3ee' },
+    { name: 'Rosa',    hex: '#f472b6' },
+    { name: 'Naranja', hex: '#fb923c' },
+    { name: 'Verde',   hex: '#4ade80' },
+    { name: 'Rojo',    hex: '#f87171' },
+    { name: 'Blanco',  hex: '#ffffff' },
+  ];
+
+  const PRESETS = [
+    { sub: 'Sección',  title: 'Introducción' },
+    { sub: 'Invitado', title: 'Nombre del invitado' },
+    { sub: 'Debate',   title: 'Tema del debate' },
+    { sub: 'Q&A',      title: 'Preguntas del chat' },
+    { sub: 'Cierre',   title: '¡Hasta la próxima!' },
+    { sub: 'Break',    title: 'Volvemos en un momento' },
+  ];
+
+  let selColor = COLORS[0].hex;
+
+  // Swatches
+  const clrs = document.getElementById('clrs');
+  COLORS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'cswatch' + (c.hex === selColor ? ' on' : '');
+    b.style.background = c.hex;
+    b.title = c.name;
+    b.onclick = () => {
+      document.querySelectorAll('.cswatch').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      selColor = c.hex;
+      document.getElementById('pv-bar').style.background = c.hex;
+      document.getElementById('pv-sub').style.color = c.hex;
+    };
+    clrs.appendChild(b);
+  });
+
+  // Presets
+  const pg = document.getElementById('pg');
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'pbtn';
+    b.innerHTML = `<span class="ps">${p.sub}</span>${p.title}`;
+    b.onclick = () => {
+      document.getElementById('inp-sub').value = p.sub;
+      document.getElementById('inp-title').value = p.title;
+      syncPreview();
+      enviar(true);
+    };
+    pg.appendChild(b);
+  });
+
+  setTimeout(() => document.getElementById('pv').classList.add('v'), 300);
+
+  // Exponer funciones al scope global
+  window.syncPreview = function() {
+    document.getElementById('pv-title').textContent = document.getElementById('inp-title').value || ' ';
+    document.getElementById('pv-sub').textContent   = document.getElementById('inp-sub').value   || ' ';
+  };
+
+  window.enviar = function(visible) {
+    const data = {
+      title:   document.getElementById('inp-title').value,
+      sub:     document.getElementById('inp-sub').value,
+      color:   selColor,
+      visible: visible,
+      ts:      Date.now()
+    };
+    set(zocaloRef, data)
+      .then(() => {
+        setConectado(true);
+        const msg = document.getElementById('status-msg');
+        msg.textContent = visible ? '✓ Mostrando en OBS' : '✓ Oculto';
+        setTimeout(() => msg.textContent = '', 2500);
+      })
+      .catch(err => {
+        setConectado(false);
+        document.getElementById('status-msg').textContent = 'Error: ' + err.message;
+      });
+  };
+
+  // Init color preview
+  document.getElementById('pv-bar').style.background = selColor;
+  document.getElementById('pv-sub').style.color = selColor;
+  setConectado(true);
+</script>
+</body>
+</html>
